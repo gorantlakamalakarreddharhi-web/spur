@@ -34,9 +34,9 @@ export async function generateReply(history: ChatMessage[], userMessage: string)
     console.log('Using Gemini API with key length:', (process.env.GEMINI_API_KEY || '').length);
 
     try {
-        // User requested "1.5 flash" for better stability.
+        // Using gemini-pro which is stable and available on all API keys
         const model = genAI.getGenerativeModel({
-            model: "gemini-1.5-flash-002",
+            model: "gemini-pro",
             systemInstruction: SYSTEM_PROMPT
         });
 
