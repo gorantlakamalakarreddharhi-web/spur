@@ -1,73 +1,113 @@
 # Spur Chat Agent
 
 A full-stack AI customer support agent built for the Spur founding engineer take-home assignment.
-Built with **Node.js/Express**, **SvelteKit**, **SQLite**, and **OpenAI**.
+This monorepo contains a Node.js/Express backend and a SvelteKit frontend.
 
-## Key Features
-- **Live Chat Interface**: Responsive, modern UI built with SvelteKit and vanilla CSS (glassmorphism details).
-- **AI Integration**: Uses OpenAI to answer customer queries with e-commerce context (shipping, updates, etc.).
-- **Persistence**: SQLite database stores all conversations and messages.
-- **Robustness**: Handles errors gracefully, input validation with Zod, and self-recovering sessions.
+**Live Demo**: [Add your Vercel/Render URL here after deploying]
 
-## Quick Start
+---
+
+## 🚀 How to Run Locally
 
 ### Prerequisites
 - Node.js (v18+)
-- OpenAI API Key
+- Google Gemini API Key (Get one [here](https://aistudio.google.com/app/apikey))
 
-### 1. Backend Setup
-The backend handles LLM interaction and data persistence.
+### 1. Setup Backend
+The backend handles the LLM integration and SQLite database.
 
-```bash
-cd server
-npm install
+1. Navigate to the server directory:
+   ```bash
+   cd server
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Configure Environment Variables:
+   Create a `.env` file in the `server` directory:
+   ```bash
+   # server/.env
+   GEMINI_API_KEY=your_gemini_api_key_here
+   PORT=3000
+   ```
+4. Initialize the Database:
+   This runs the Drizzle migrations to set up your SQLite file.
+   ```bash
+   npm run db:push
+   ```
+5. Start the Server:
+   ```bash
+   npm run dev
+   ```
+   Server will start at `http://localhost:3000`.
 
-# Create environment file
-# Add: OPENAI_API_KEY=your_key_here
-# Optional: PORT=3000 (default)
-echo "OPENAI_API_KEY=sk-..." > .env
+### 2. Setup Frontend
+The frontend is a SvelteKit application providing the chat interface.
 
-# Initialize Database
-npm run db:push
+1. Open a **new terminal** and navigate to the client directory:
+   ```bash
+   cd client
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the Frontend:
+   ```bash
+   npm run dev
+   ```
+   Visit `http://localhost:5173` to chat!
 
-# Start Server
-npm run dev
-```
+---
 
-### 2. Frontend Setup
-The frontend is a SvelteKit app providing the chat widget.
-
-```bash
-cd client
-npm install
-npm run dev
-```
-
-Visit `http://localhost:5173` to chat!
-
-## Architecture Overview
+## 🛠 Architecture Overview
 
 ### Backend (`/server`)
-- **Framework**: Express.js with TypeScript. Chosen for simplicity and speed of development.
-- **Database**: SQLite with **Drizzle ORM**.
-  - Why? SQLite requires zero setup (great for take-homes/prototypes), but Drizzle allows swapping to PostgreSQL easily for production.
-- **API Structure**:
-  - `POST /chat/message`: Stateless-ish endpoint. Accepts a session ID (or creates one) and a message. Returns the AI response.
-  - **Service Layer**: `services/llm.ts` encapsulates OpenAI logic, making it easy to swap for Claude or others.
+Structuring for simplicity and extensibility was the goal.
+
+- **Framework**: **Express.js** with **TypeScript**.
+  - *Why?* Lightweight, well-understood by every JS developer, and perfect for a stateless API.
+- **Database**: **SQLite** (via `better-sqlite3`) interacting through **Drizzle ORM**.
+  - *Design Decision*: Used SQLite for zero-config local development, but formatted the schema such that switching to PostgreSQL in production is just changing the driver line in Drizzle.
+- **Folder Structure**:
+  - `routes/`: API endpoint definitions (separation of concerns).
+  - `services/`: Business logic. `llm.ts` handles the AI API, allowing us to easily swap providers (e.g., switch from Gemini to OpenAI) without touching the route handlers.
+  - `db/`: Database schema and migration logic.
 
 ### Frontend (`/client`)
-- **Framework**: SvelteKit.
-  - Why? Extremely fast, little boilerplate, and reactive state management is perfect for chat UIs.
-- **Styling**: Vanilla CSS with CSS Variables (`app.css`).
-  - No Tailwind (per prompt reference "if you're faster there" / "No fancy design system"), but I implemented a clean, professional design system ("Inter" font, consistent spacing/colors).
+- **Framework**: **SvelteKit**.
+  - *Why?* Svelte's reactivity model is ideal for real-time chat interfaces (fewer re-renders than React), and it ships less JS to the browser.
+- **Styling**: **Vanilla CSS**.
+  - *Design Decision*: Created a clean, "glassmorphism" aesthetic with custom CSS variables. Avoided heavy UI libraries to demonstrate CSS proficiency and keep the bundle small.
 
-## Trade-offs & Future Improvements
-- **Security**: There is currently no rigorous auth or rate limiting. In production, I'd add `express-rate-limit` and perhaps turnstile/captcha.
-- **Database**: SQLite is file-based. For a real high-scale app, I'd use PostgreSQL (Drizzle makes this migration easy) and Redis for caching LLM responses.
-- **LLM Context**: Currently, we just dump the last 10 messages. For longer chats, a RAG (Retrieval Augmented Generation) approach or summary-based context window would be better to save tokens.
-- **Real-time**: Currently uses HTTP request/response. For a "typing" indicator that is true to life, Server-Sent Events (SSE) or WebSockets (`socket.io`) would provide a streaming experience.
+---
 
-## "Idiot-Proofing"
-- **Validation**: Uses `zod` to validate all incoming requests.
-- **Error Handling**: The UI gracefully shows error banners if the backend is down or the LLM fails, without crashing the page.
-- **Session Recovery**: Stores session ID in `localStorage` so refreshing the page doesn't lose your conversation context (backend history loading logic is prepared).
+## 🤖 LLM Notes
+
+- **Provider**: **Google Gemini (Model: `gemini-1.5-flash`)**.
+  - *Why?* It offers extremely fast inference speed (crucial for chat) and a generous free tier compared to OpenAI.
+- **Prompting Strategy**:
+  - **System Prompt**: Functions as the "Constitution" for the agent. It enforces the persona (Friendly Support Agent), defines shipping policies, and restricts the AI from hallucinating policies (e.g., "Do not make up facts").
+  - **History Management**: We pass the last N messages to the API to maintain conversation context.
+- **Format Sanitization**: The prompt explicitly asks for short, concise replies to mimick a real chat agent, rather than generating long essay-style paragraphs.
+
+---
+
+## ⚖️ Trade-offs & "If I had more time..."
+
+1. **Database Scalability**:
+   - *Current*: SQLite files are great for dev but bad for containers (Render/Heroku usually have ephemeral filesystems).
+   - *Improvement*: Switch to a managed PostgreSQL (e.g., Supabase/Neon). Drizzle ORM setup makes this very easy.
+
+2. **Wait Times / Typewriter Effect**:
+   - *Current*: Standard HTTP Request -> Response. The user waits for the full generation locally.
+   - *Improvement*: Implement **Server-Sent Events (SSE)** to stream the response token-by-token. This makes the app feel much faster.
+
+3. **Authentication**:
+   - *Current*: Session based on `localStorage` ID.
+   - *Improvement*: Add JWT-based auth or signed cookies to prevent users from spoofing other sessions.
+
+4. **Context Awareness**:
+   - *Current*: Raw text history.
+   - *Improvement*: Implement RAG (Retrieval Augmented Generation). Store the "Knowledge Base" (shipping info, FAQs) in a vector DB (Pinecone/pgvector) and search only relevant info to inject into the context. This reduces token cost and increases accuracy for large docs.
